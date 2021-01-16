@@ -1,6 +1,7 @@
 import React from 'react';
-import { server } from '../../lib/api/server';
 
+import { useMutation } from '../../lib/api/useMutation';
+import { useQuery } from '../../lib/api/useQuery';
 import { DeleteListing, DeleteListingVariable, ListingsData } from './types';
 
 const LISTINGS_QUERY = `
@@ -32,31 +33,53 @@ interface Props {
 }
 
 const Listings = ({ title }: Props) => {
-  const handleFetchListings = async () => {
-    const { data } = await server.fetch<ListingsData>({
-      query: LISTINGS_QUERY,
-    });
+  const { data, loading, error, refetch } = useQuery<ListingsData>(
+    LISTINGS_QUERY
+  );
 
-    console.log(data);
+  const [
+    deleteListing,
+    { loading: deleteListingLoading, error: deleteListingError },
+  ] = useMutation<DeleteListing, DeleteListingVariable>(
+    DELETE_LISTING_MUTATION
+  );
+
+  const handleDeleteListing = async (id: string) => {
+    await deleteListing({ id });
+
+    refetch();
   };
 
-  const handleDeleteListing = async () => {
-    const { data } = await server.fetch<DeleteListing, DeleteListingVariable>({
-      query: DELETE_LISTING_MUTATION,
-      variables: {
-        id: '6001b7af0cccb64321c6c753',
-      },
-    });
+  if (loading) {
+    return <p>Loading...</p>;
+  }
 
-    console.log(data);
-  };
+  if (error) {
+    return <h2>Something went wrong, please try again later!</h2>;
+  }
 
   return (
     <div>
       <h2>{title}</h2>
 
-      <button onClick={handleFetchListings}>Fetch Listings</button>
-      <button onClick={handleDeleteListing}>Delete Listings</button>
+      <ul>
+        {data?.listings?.map((listing) => (
+          <div key={listing.id}>
+            <li>
+              {listing.title}
+              <button onClick={() => handleDeleteListing(listing.id)}>
+                Delete
+              </button>
+            </li>
+          </div>
+        ))}
+      </ul>
+
+      {deleteListingLoading && <h2>Deletion is in progress!</h2>}
+
+      {deleteListingError && (
+        <h2>Something went wrong, please try again later!</h2>
+      )}
     </div>
   );
 };
